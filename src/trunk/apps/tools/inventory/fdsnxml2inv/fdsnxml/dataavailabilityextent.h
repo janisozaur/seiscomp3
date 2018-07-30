@@ -7,12 +7,12 @@
  ***************************************************************************/
 
 
-#ifndef __SEISCOMP_FDSNXML_PHONE_H__
-#define __SEISCOMP_FDSNXML_PHONE_H__
+#ifndef __SEISCOMP_FDSNXML_DATAAVAILABILITYEXTENT_H__
+#define __SEISCOMP_FDSNXML_DATAAVAILABILITYEXTENT_H__
 
 
 #include <fdsnxml/metadata.h>
-#include <string>
+#include <fdsnxml/date.h>
 #include <seiscomp3/core/baseobject.h>
 #include <seiscomp3/core/exceptions.h>
 
@@ -21,11 +21,16 @@ namespace Seiscomp {
 namespace FDSNXML {
 
 
-DEFINE_SMARTPOINTER(Phone);
+DEFINE_SMARTPOINTER(DataAvailabilityExtent);
 
 
-class Phone : public Core::BaseObject {
-	DECLARE_CASTS(Phone);
+/**
+ * \brief A type for describing data availability extents, the earliest and
+ * \brief latest data available. No information is included about the
+ * \brief continuity of the data is included or implied.
+ */
+class DataAvailabilityExtent : public Core::BaseObject {
+	DECLARE_CASTS(DataAvailabilityExtent);
 	DECLARE_RTTI;
 	DECLARE_METAOBJECT_DERIVED;
 
@@ -34,13 +39,13 @@ class Phone : public Core::BaseObject {
 	// ------------------------------------------------------------------
 	public:
 		//! Constructor
-		Phone();
+		DataAvailabilityExtent();
 
 		//! Copy constructor
-		Phone(const Phone &other);
+		DataAvailabilityExtent(const DataAvailabilityExtent &other);
 
 		//! Destructor
-		~Phone();
+		~DataAvailabilityExtent();
 
 
 	// ------------------------------------------------------------------
@@ -48,29 +53,21 @@ class Phone : public Core::BaseObject {
 	// ------------------------------------------------------------------
 	public:
 		//! Copies the metadata of other to this
-		Phone& operator=(const Phone &other);
-		bool operator==(const Phone &other) const;
+		DataAvailabilityExtent& operator=(const DataAvailabilityExtent &other);
+		bool operator==(const DataAvailabilityExtent &other) const;
 
 
 	// ------------------------------------------------------------------
 	//  Setters/Getters
 	// ------------------------------------------------------------------
 	public:
-		//! XML tag: CountryCode
-		void setCountryCode(const OPT(int)& countryCode);
-		int countryCode() const;
+		//! XML tag: start
+		void setStart(DateTime start);
+		DateTime start() const;
 
-		//! XML tag: AreaCode
-		void setAreaCode(int areaCode);
-		int areaCode() const;
-
-		//! XML tag: PhoneNumber
-		void setPhoneNumber(const std::string& phoneNumber);
-		const std::string& phoneNumber() const;
-
-		//! XML tag: description
-		void setDescription(const std::string& description);
-		const std::string& description() const;
+		//! XML tag: end
+		void setEnd(DateTime end);
+		DateTime end() const;
 
 
 	// ------------------------------------------------------------------
@@ -78,10 +75,8 @@ class Phone : public Core::BaseObject {
 	// ------------------------------------------------------------------
 	private:
 		// Attributes
-		OPT(int) _countryCode;
-		int _areaCode;
-		std::string _phoneNumber;
-		std::string _description;
+		DateTime _start;
+		DateTime _end;
 };
 
 

@@ -8,7 +8,7 @@
 
 
 #define SEISCOMP_COMPONENT SWE
-#include <fdsnxml/phone.h>
+#include <fdsnxml/dataavailabilityspan.h>
 #include <seiscomp3/logging/log.h>
 
 
@@ -16,21 +16,21 @@ namespace Seiscomp {
 namespace FDSNXML {
 
 
-Phone::MetaObject::MetaObject(const Core::RTTI *rtti, const Core::MetaObject *base) : Core::MetaObject(rtti, base) {
-	addProperty(Core::simpleProperty("countryCode", "int", false, false, false, false, true, false, NULL, &Phone::setCountryCode, &Phone::countryCode));
-	addProperty(Core::simpleProperty("areaCode", "int", false, false, false, false, false, false, NULL, &Phone::setAreaCode, &Phone::areaCode));
-	addProperty(Core::simpleProperty("phoneNumber", "string", false, false, false, false, false, false, NULL, &Phone::setPhoneNumber, &Phone::phoneNumber));
-	addProperty(Core::simpleProperty("description", "string", false, false, false, false, false, false, NULL, &Phone::setDescription, &Phone::description));
+DataAvailabilitySpan::MetaObject::MetaObject(const Core::RTTI *rtti, const Core::MetaObject *base) : Core::MetaObject(rtti, base) {
+	addProperty(Core::simpleProperty("start", "datetime", false, false, false, false, false, false, NULL, &DataAvailabilitySpan::setStart, &DataAvailabilitySpan::start));
+	addProperty(Core::simpleProperty("end", "datetime", false, false, false, false, false, false, NULL, &DataAvailabilitySpan::setEnd, &DataAvailabilitySpan::end));
+	addProperty(Core::simpleProperty("numberSegments", "int", false, false, false, false, false, false, NULL, &DataAvailabilitySpan::setNumberSegments, &DataAvailabilitySpan::numberSegments));
+	addProperty(Core::simpleProperty("maximumTimeTear", "float", false, false, false, false, true, false, NULL, &DataAvailabilitySpan::setMaximumTimeTear, &DataAvailabilitySpan::maximumTimeTear));
 }
 
 
-IMPLEMENT_RTTI(Phone, "FDSNXML::Phone", Core::BaseObject)
-IMPLEMENT_RTTI_METHODS(Phone)
-IMPLEMENT_METAOBJECT(Phone)
+IMPLEMENT_RTTI(DataAvailabilitySpan, "FDSNXML::DataAvailabilitySpan", Core::BaseObject)
+IMPLEMENT_RTTI_METHODS(DataAvailabilitySpan)
+IMPLEMENT_METAOBJECT(DataAvailabilitySpan)
 
 
-Phone::Phone() {
-	_areaCode = 0;
+DataAvailabilitySpan::DataAvailabilitySpan() {
+	_numberSegments = 0;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -38,7 +38,7 @@ Phone::Phone() {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-Phone::Phone(const Phone &other)
+DataAvailabilitySpan::DataAvailabilitySpan(const DataAvailabilitySpan &other)
  : Core::BaseObject() {
 	*this = other;
 }
@@ -48,21 +48,21 @@ Phone::Phone(const Phone &other)
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-Phone::~Phone() {}
+DataAvailabilitySpan::~DataAvailabilitySpan() {}
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-bool Phone::operator==(const Phone &rhs) const {
-	if ( !(_countryCode == rhs._countryCode) )
+bool DataAvailabilitySpan::operator==(const DataAvailabilitySpan &rhs) const {
+	if ( !(_start == rhs._start) )
 		return false;
-	if ( !(_areaCode == rhs._areaCode) )
+	if ( !(_end == rhs._end) )
 		return false;
-	if ( !(_phoneNumber == rhs._phoneNumber) )
+	if ( !(_numberSegments == rhs._numberSegments) )
 		return false;
-	if ( !(_description == rhs._description) )
+	if ( !(_maximumTimeTear == rhs._maximumTimeTear) )
 		return false;
 	return true;
 }
@@ -72,8 +72,8 @@ bool Phone::operator==(const Phone &rhs) const {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-void Phone::setCountryCode(const OPT(int)& countryCode) {
-	_countryCode = countryCode;
+void DataAvailabilitySpan::setStart(DateTime start) {
+	_start = start;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -81,10 +81,8 @@ void Phone::setCountryCode(const OPT(int)& countryCode) {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-int Phone::countryCode() const {
-	if ( _countryCode )
-		return *_countryCode;
-	throw Seiscomp::Core::ValueException("Phone.countryCode is not set");
+DateTime DataAvailabilitySpan::start() const {
+	return _start;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -92,8 +90,8 @@ int Phone::countryCode() const {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-void Phone::setAreaCode(int areaCode) {
-	_areaCode = areaCode;
+void DataAvailabilitySpan::setEnd(DateTime end) {
+	_end = end;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -101,8 +99,8 @@ void Phone::setAreaCode(int areaCode) {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-int Phone::areaCode() const {
-	return _areaCode;
+DateTime DataAvailabilitySpan::end() const {
+	return _end;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -110,8 +108,8 @@ int Phone::areaCode() const {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-void Phone::setPhoneNumber(const std::string& phoneNumber) {
-	_phoneNumber = phoneNumber;
+void DataAvailabilitySpan::setNumberSegments(int numberSegments) {
+	_numberSegments = numberSegments;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -119,8 +117,8 @@ void Phone::setPhoneNumber(const std::string& phoneNumber) {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-const std::string& Phone::phoneNumber() const {
-	return _phoneNumber;
+int DataAvailabilitySpan::numberSegments() const {
+	return _numberSegments;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -128,8 +126,8 @@ const std::string& Phone::phoneNumber() const {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-void Phone::setDescription(const std::string& description) {
-	_description = description;
+void DataAvailabilitySpan::setMaximumTimeTear(const OPT(double)& maximumTimeTear) {
+	_maximumTimeTear = maximumTimeTear;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -137,8 +135,10 @@ void Phone::setDescription(const std::string& description) {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-const std::string& Phone::description() const {
-	return _description;
+double DataAvailabilitySpan::maximumTimeTear() const {
+	if ( _maximumTimeTear )
+		return *_maximumTimeTear;
+	throw Seiscomp::Core::ValueException("DataAvailabilitySpan.maximumTimeTear is not set");
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -146,11 +146,11 @@ const std::string& Phone::description() const {
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-Phone& Phone::operator=(const Phone &other) {
-	_countryCode = other._countryCode;
-	_areaCode = other._areaCode;
-	_phoneNumber = other._phoneNumber;
-	_description = other._description;
+DataAvailabilitySpan& DataAvailabilitySpan::operator=(const DataAvailabilitySpan &other) {
+	_start = other._start;
+	_end = other._end;
+	_numberSegments = other._numberSegments;
+	_maximumTimeTear = other._maximumTimeTear;
 	return *this;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
