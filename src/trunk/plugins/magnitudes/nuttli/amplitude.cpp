@@ -284,6 +284,9 @@ OPT(double) MNAmplitude::getMinimumOnset(const PhaseOrVelocity *priorities,
                                          double lat0, double lon0, double depth,
                                          double lat1, double lon1, double dist) const {
 	// Compute window start
+	// First take the manually picked arrivals
+	// Then Vmax
+	// And as last option compute theoretical arrival times
 	for ( int i = 0; i < EPhaseOrVelocityQuantity; ++i ) {
 		switch ( priorities[i] ) {
 			case PoV_Undefined:
@@ -347,7 +350,35 @@ OPT(double) MNAmplitude::getMinimumOnset(const PhaseOrVelocity *priorities,
 					return onset;
 				}
 
-				// No arrival found, compute the predicted arrival time
+				break;
+			}
+			case PoV_Vmin:
+				if ( _Vmin > 0 )
+					return Math::Geo::deg2km(dist) / _Vmin;
+				break;
+			case PoV_Vmax:
+				if ( _Vmax > 0 )
+					return Math::Geo::deg2km(dist) / _Vmax;
+				break;
+			default:
+				break;
+		}
+	}
+
+	for ( int i = 0; i < EPhaseOrVelocityQuantity; ++i ) {
+		switch ( priorities[i] ) {
+			case PoV_Undefined:
+				// Force loop break
+				i = EPhaseOrVelocityQuantity;
+				break;
+			case PoV_Pg:
+			case PoV_Pn:
+			case PoV_P:
+			case PoV_Sg:
+			case PoV_Sn:
+			case PoV_S:
+			case PoV_Lg:
+			case PoV_Rg:
 				try {
 					TravelTime tt = _travelTimeTable->compute(priorities[i].toString(), lat0, lon0, depth, lat1, lon1, 1);
 					if ( !(tt.time < 0) )
@@ -355,17 +386,20 @@ OPT(double) MNAmplitude::getMinimumOnset(const PhaseOrVelocity *priorities,
 				}
 				catch ( ... ) {}
 				break;
-			}
 			case PoV_Vmin:
-				return Math::Geo::deg2km(dist) / _Vmin;
+				if ( _Vmin > 0 )
+					return Math::Geo::deg2km(dist) / _Vmin;
+				break;
 			case PoV_Vmax:
-				return Math::Geo::deg2km(dist) / _Vmax;
+				if ( _Vmax > 0 )
+					return Math::Geo::deg2km(dist) / _Vmax;
+				break;
 			default:
 				break;
 		}
 	}
 
-	return Core::None;
+	return minimumOnset;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
