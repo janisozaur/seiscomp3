@@ -160,6 +160,9 @@ class MNAmplitude : public Seiscomp::Processing::AmplitudeProcessor {
 		                            double lat0, double lon0, double depth,
 		                            double lat1, double lon1, double dist) const;
 
+		OPT(double) getEarliestOnset(double lat0, double lon0, double depth,
+		                             double lat1, double lon1, double dist) const;
+
 
 	// ----------------------------------------------------------------------
 	//  Private members
@@ -173,6 +176,7 @@ class MNAmplitude : public Seiscomp::Processing::AmplitudeProcessor {
 
 		bool            _useRMS; //!< Whether to use RMS for SNR or not
 		double          _Vmin, _Vmax;
+		double          _snrWindowSeconds;
 		double          _noiseWindowPreSeconds;
 		PhaseOrVelocity _noiseEndPriorities[EPhaseOrVelocityQuantity];
 		PhaseOrVelocity _signalStartPriorities[EPhaseOrVelocityQuantity];

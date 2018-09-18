@@ -87,6 +87,10 @@ bool computeMDAmplitude(const double *data, size_t npts,
 		}
 	}
 
+	if ( ipeak_save < 0 )
+		// No amplitude found
+		return false;
+
 	// not really time of maximum
 	index = ipeak_save;
 
@@ -149,6 +153,7 @@ void MNAmplitude::setDefaults() {
 	setSignalStart(0);
 	setSignalEnd(0);
 
+	_snrWindowSeconds = 10;
 	_noiseWindowPreSeconds = 0;
 }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -254,6 +259,11 @@ bool MNAmplitude::setup(const Settings &settings) {
 
 	try {
 		_Vmax = settings.getDouble("amplitudes.MN.Vmax");
+	}
+	catch ( ... ) {}
+
+	try {
+		_snrWindowSeconds = settings.getDouble("amplitudes.MN.snrWindowSeconds");
 	}
 	catch ( ... ) {}
 
@@ -365,12 +375,59 @@ OPT(double) MNAmplitude::getMinimumOnset(const PhaseOrVelocity *priorities,
 		}
 	}
 
-	for ( int i = 0; i < EPhaseOrVelocityQuantity; ++i ) {
-		switch ( priorities[i] ) {
-			case PoV_Undefined:
-				// Force loop break
-				i = EPhaseOrVelocityQuantity;
-				break;
+	return Core::None;
+}
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+OPT(double) MNAmplitude::getEarliestOnset(double lat0, double lon0, double depth,
+                                          double lat1, double lon1, double dist) const {
+	OPT(double) minimumOnset;
+	bool acceptAllArrivals = true;
+
+	// First search for manually picked phases
+	size_t arrivalCount = _environment.hypocenter->arrivalCount();
+	for ( size_t i = 0; i < arrivalCount; ++i ) {
+		DataModel::Arrival *arr = _environment.hypocenter->arrival(i);
+		DataModel::Pick *pick = DataModel::Pick::Find(arr->pickID());
+		if ( pick == NULL )
+			continue;
+
+		if ( pick->waveformID().networkCode() != _networkCode
+		  || pick->waveformID().stationCode() != _stationCode
+		  || pick->waveformID().locationCode() != _locationCode )
+			continue;
+
+		if ( !acceptAllArrivals ) {
+			try {
+				if ( pick->evaluationMode() != DataModel::MANUAL ) {
+					// We do not accept automatic picks
+					SEISCOMP_DEBUG("%s.%s.%s: arrival '%s' no accepted, origin evaluation  mode != manual",
+					               _networkCode.c_str(), _stationCode.c_str(), _locationCode.c_str(),
+					               arr->phase().code().c_str());
+					continue;
+				}
+			}
+			catch ( ... ) {}
+		}
+
+		// Phase and location matches, use it
+		double onset = pick->time().value() - _environment.hypocenter->time().value();
+		if ( !minimumOnset || *minimumOnset > onset )
+			minimumOnset = onset;
+	}
+
+	if ( minimumOnset )
+		return *minimumOnset;
+
+	minimumOnset = Core::None;
+
+	PhaseOrVelocity earliest[3] = { PoV_Pg, PoV_Pn, PoV_P };
+	for ( int i = 0; i < 3; ++i ) {
+		switch ( earliest[i] ) {
 			case PoV_Pg:
 			case PoV_Pn:
 			case PoV_P:
@@ -380,19 +437,14 @@ OPT(double) MNAmplitude::getMinimumOnset(const PhaseOrVelocity *priorities,
 			case PoV_Lg:
 			case PoV_Rg:
 				try {
-					TravelTime tt = _travelTimeTable->compute(priorities[i].toString(), lat0, lon0, depth, lat1, lon1, 1);
-					if ( !(tt.time < 0) )
-						return tt.time;
+					TravelTime tt = _travelTimeTable->compute(earliest[i].toString(), lat0, lon0, depth, lat1, lon1, 0, 1);
+					if ( tt.time < 0 )
+						break;
+
+					if ( !minimumOnset || *minimumOnset > tt.time )
+						minimumOnset = tt.time;
 				}
 				catch ( ... ) {}
-				break;
-			case PoV_Vmin:
-				if ( _Vmin > 0 )
-					return Math::Geo::deg2km(dist) / _Vmin;
-				break;
-			case PoV_Vmax:
-				if ( _Vmax > 0 )
-					return Math::Geo::deg2km(dist) / _Vmax;
 				break;
 			default:
 				break;
@@ -486,9 +538,8 @@ void MNAmplitude::setEnvironment(const Seiscomp::DataModel::Origin *hypocenter,
 		return;
 	}
 
-	OPT(double) noiseWindowEnd    = getMinimumOnset(_noiseEndPriorities,
-	                                                hypoLat, hypoLon, hypoDepth,
-	                                                recvLat, recvLon, dist);
+	OPT(double) noiseWindowEnd    = getEarliestOnset(hypoLat, hypoLon, hypoDepth,
+	                                                 recvLat, recvLon, dist);
 	OPT(double) signalWindowStart = getMinimumOnset(_signalStartPriorities,
 	                                                hypoLat, hypoLon, hypoDepth,
 	                                                recvLat, recvLon, dist);
@@ -508,8 +559,7 @@ void MNAmplitude::setEnvironment(const Seiscomp::DataModel::Origin *hypocenter,
 
 	*noiseWindowEnd -= _noiseWindowPreSeconds;
 
-	double signalLength = *signalWindowEnd - *signalWindowStart;
-	double noiseWindowStart = *noiseWindowEnd - signalLength;
+	double noiseWindowStart = *noiseWindowEnd - _snrWindowSeconds;
 
 	double pickOffset = _trigger - _environment.hypocenter->time().value();
 	noiseWindowStart -= pickOffset;
@@ -591,6 +641,8 @@ bool MNAmplitude::computeNoise(const Seiscomp::DoubleArray &data,
 		}
 
 		*amplitude = sqrt(*amplitude / (i2-i1));
+		SEISCOMP_DEBUG("Noise amplitude in data[%d:%d] = %f", i1, i2, *amplitude);
+
 		return true;
 	}
 	else {
@@ -637,8 +689,38 @@ bool MNAmplitude::computeAmplitude(const Seiscomp::DoubleArray &dataArray,
 		return false;
 
 	dt->index += si1;
+	SEISCOMP_DEBUG("Amplitude in data[%d:%d] = %f at %d",
+	               si1, si1 + npts, amplitude->value, int(dt->index));
 
 	if ( _useRMS ) {
+		// The length of peak to trough in samples. The index is the smallest index
+		// of the trough-peak or peak-trough pair.
+		double t_len = *period * 0.5;
+		// The average index of peak and trough
+		double t_zero = dt->index + t_len * 0.5;
+
+		// The start of the snr signal window in samples with respect to data window
+		int snrWindowStart = int(t_zero - _snrWindowSeconds*0.5*_stream.fsamp);
+		// The end of the snr signal window in samples with respect to data window
+		int snrWindowEnd = int(t_zero + _snrWindowSeconds*0.5*_stream.fsamp);
+
+		if ( snrWindowStart < int(si1) ) {
+			int ofs = si1-snrWindowStart;
+			snrWindowStart += ofs;
+			snrWindowEnd += ofs;
+		}
+		else if ( snrWindowEnd > int(si2) ) {
+			int ofs = si2-snrWindowEnd;
+			snrWindowEnd += ofs;
+			snrWindowStart += ofs;
+		}
+
+		if ( snrWindowStart < 0 ) snrWindowStart = 0;
+		if ( snrWindowEnd > dataArray.size() ) snrWindowEnd = dataArray.size();
+
+		data = dataArray.typedData() + snrWindowStart;
+		npts = snrWindowEnd - snrWindowStart;
+
 		offset = Seiscomp::Math::Statistics::mean(npts, data);
 		double rms = 0;
 
@@ -648,6 +730,9 @@ bool MNAmplitude::computeAmplitude(const Seiscomp::DoubleArray &dataArray,
 		}
 
 		rms = sqrt(rms / npts);
+
+		SEISCOMP_DEBUG("Signal snr amplitude in data[%d:%d] = %f", snrWindowStart, snrWindowEnd, rms);
+
 		*snr = rms / *noiseAmplitude();
 	}
 	else
