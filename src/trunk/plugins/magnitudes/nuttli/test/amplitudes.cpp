@@ -114,6 +114,7 @@ class TestApp : public Client::Application {
 			EventPtr evt =  ep->eventCount() > 0 ? ep->event(0) : NULL;
 
 			AmplitudeMap originalAmplitudes;
+			StationMagnitudeMap originalStationMagnitudes;
 
 			// Load existing amplitudes and create a map from pickID to the
 			// amplitude object.
@@ -128,6 +129,17 @@ class TestApp : public Client::Application {
 				}
 
 				originalAmplitudes[amp->pickID()] = pair<AmplitudePtr, string>(amp, "");
+			}
+
+			for ( size_t i = 0; i < origin->stationMagnitudeCount(); ++i ) {
+				StationMagnitude *stamag = origin->stationMagnitude(i);
+				if ( stamag->type() != MAG_TYPE ) continue;
+				if ( stamag->amplitudeID().empty() ) {
+					cerr << "Expectation failed: magnitude '" << stamag->publicID() << "' without amplitude reference: " << prefix << ".xml" << endl;
+					return false;
+				}
+
+				originalStationMagnitudes[stamag->amplitudeID()] = stamag;
 			}
 
 			DataModel::Inventory *inv = Client::Inventory::Instance()->inventory();
@@ -246,6 +258,8 @@ class TestApp : public Client::Application {
 			int errors = 0;
 			vector<Mismatch> mismatches;
 
+			IDMap fromNewToOldAmplitude;
+
 			// Analyse results
 			for ( AmplitudeMap::iterator it = originalAmplitudes.begin();
 			      it != originalAmplitudes.end(); ++it ) {
@@ -296,6 +310,8 @@ class TestApp : public Client::Application {
 					     << "    + period       = " << amp->period().value() << endl
 					     << "    + time of peak = " << amp->timeWindow().reference().iso() << endl;
 
+					fromNewToOldAmplitude[amp->publicID()] = it->second.first->publicID();
+
 					if ( !matches(amp->amplitude().value(), it->second.first->amplitude().value()) )
 						mismatches.push_back(Mismatch(it->second.second, "amplitude",
 						                              it->second.first->amplitude().value(),
@@ -328,7 +344,6 @@ class TestApp : public Client::Application {
 
 			cerr << endl;
 
-			/*
 			cerr << "# channel; amplitude in m/s; snr; period; time of peak; rel tw begin; rel tw end" << endl;
 			for ( AmplitudeMap::iterator it = originalAmplitudes.begin();
 			      it != originalAmplitudes.end(); ++it ) {
@@ -347,7 +362,6 @@ class TestApp : public Client::Application {
 					     << endl;
 				}
 			}
-			*/
 
 			// Clear old magnitudes
 			while ( origin->magnitudeCount() > 0 )
@@ -365,6 +379,11 @@ class TestApp : public Client::Application {
 				if ( it->second->userData() == NULL ) continue;
 				Amplitude *amp = static_cast<Amplitude*>(it->second->userData());
 				ep->add(amp);
+
+				string sid = amp->waveformID().networkCode() + "." +
+				             amp->waveformID().stationCode() + "." +
+				             amp->waveformID().locationCode() + "." +
+				             amp->waveformID().channelCode();
 
 				Processing::Settings settings(configModuleName(),
 				                              amp->waveformID().networkCode(),
@@ -388,13 +407,23 @@ class TestApp : public Client::Application {
 					                          env.hypocenter, env.receiver, amp, mag);
 
 				if ( status != Processing::MagnitudeProcessor::OK ) {
-					SEISCOMP_WARNING("%s.%s.%s.%s: magnitude status = %s",
-					                 amp->waveformID().networkCode().c_str(),
-					                 amp->waveformID().stationCode().c_str(),
-					                 amp->waveformID().locationCode().c_str(),
-					                 amp->waveformID().channelCode().c_str(),
-					                 status.toString());
+					SEISCOMP_WARNING("%s: magnitude status = %s",
+					                 sid.c_str(), status.toString());
 					continue;
+				}
+
+				IDMap::iterator idit = fromNewToOldAmplitude.find(amp->publicID());
+				if ( idit != fromNewToOldAmplitude.end() ) {
+					StationMagnitudeMap::iterator smit = originalStationMagnitudes.find(idit->second);
+					if ( smit != originalStationMagnitudes.end() ) {
+						StationMagnitude *oldStaMag = smit->second.get();
+						double roundedMag = floor(mag*10+0.5)*0.1;
+						if ( !matches(roundedMag, oldStaMag->magnitude().value(), 0.005) ) {
+							mismatches.push_back(Mismatch(sid, "magnitude",
+							                              oldStaMag->magnitude().value(),
+							                              roundedMag));
+						}
+					}
 				}
 
 				StationMagnitudePtr stamag = StationMagnitude::Create();
@@ -526,18 +555,22 @@ class TestApp : public Client::Application {
 				}
 			}
 
+			bool success = true;
+
 			if ( !compareAmplitudes("BarrowStrait_MN6.0") )
-				return false;
+				success = false;
 
 			if ( !compareAmplitudes("Charlevoix_MN2.4") )
-				return false;
+				success = false;
 
-			return true;
+			return success;
 		}
 
 	private:
 		typedef map<string, pair<AmplitudePtr, string> > AmplitudeMap;
+		typedef map<string, StationMagnitudePtr> StationMagnitudeMap;
 		typedef map<string, Processing::AmplitudeProcessorPtr> AmplitudeProcMap;
+		typedef map<string, string> IDMap;
 };
 
 
